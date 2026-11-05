@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Employee & Department Management System
 
 A robust, enterprise-grade console application built in Python for managing employees, departments, historical and ongoing department assignments, and date-based operational reports.
@@ -346,3 +347,6 @@ When explaining this application during an interview, highlight these key design
    Explain how `format_ascii_table` calculates maximum column widths dynamically and how `parse_ascii_table` reads pipe-separated rows safely.
 4. **Data Integrity & Fault Tolerance**:
    Explain how referential checks protect historical departments and how `tempfile` + `os.replace` guarantees atomic writes without corrupted files.
+=======
+# Employee_Management
+>>>>>>> 9505a739b06412418a572da85e68185825453f39
