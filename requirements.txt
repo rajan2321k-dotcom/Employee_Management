@@ -1,0 +1,5 @@
+# Employee & Department Management System
+# Technology Stack: Python 3 Standard Library
+# No external third-party dependencies required.
+# All operations (ASCII tables, datetime validation, file I/O) are handled natively.
+

@@ -1,0 +1,7 @@
++---------------+----------------------+
+| Department ID | Description          |
++---------------+----------------------+
+| DEP001        | Human Resources      |
+| DEP002        | Software Development |
+| DEP003        | Finance              |
++---------------+----------------------+

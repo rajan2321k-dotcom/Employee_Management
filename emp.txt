@@ -1,0 +1,7 @@
++-------------+-------+-----+------------+------------+---------+
+| Employee ID | Name  | Age | City       | State      | Country |
++-------------+-------+-----+------------+------------+---------+
+| EMP001      | Rajan | 21  | Coimbatore | Tamil Nadu | India   |
+| EMP002      | Arun  | 25  | Chennai    | Tamil Nadu | India   |
+| EMP003      | Kumar | 30  | Madurai    | Tamil Nadu | India   |
++-------------+-------+-----+------------+------------+---------+
