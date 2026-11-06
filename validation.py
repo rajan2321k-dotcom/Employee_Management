@@ -1,4 +1,14 @@
+"""
+validation.py - Sequential Input & Manual Date Validation Engine
 
+Features:
+- Strict Name validation (A-Z, a-z, spaces only; no numbers or special characters)
+- Strict Age validation (Numeric only, 18-65 inclusive)
+- Location fields validation (City, State, Country: non-empty, letters/spaces only)
+- Department description validation (Non-empty)
+- Custom manual date validation and comparison (Zero built-in datetime/calendar modules)
+- Date interval overlap logic
+"""
 
 import re
 from typing import Tuple, Optional, List, Dict
@@ -9,24 +19,124 @@ MIN_DATE_TUPLE: Tuple[int, int, int] = (1000, 1, 1)
 
 
 # ==============================================================================
-# 1. MANUAL DATE UTILITIES (NO BUILT-IN DATE LIBRARIES)
+# 1. FIELD VALIDATION (NAME, AGE, LOCATION, DEPARTMENT)
+# ==============================================================================
+
+def validate_employee_name(name: str) -> Tuple[bool, str]:
+    """
+    Validate employee name:
+    - Accept only alphabetic characters (A-Z, a-z).
+    - Allow spaces between words.
+    - Reject numbers and special characters.
+    - Do not accept empty input.
+    """
+    if not name or not str(name).strip():
+        return False, "Employee name cannot be empty."
+
+    cleaned = str(name).strip()
+
+    # Reject numbers and special characters: allow only letters and spaces
+    for ch in cleaned:
+        if not (ch.isalpha() or ch.isspace()):
+            return (
+                False,
+                "Employee name must contain only alphabetic characters (A-Z, a-z) and spaces. "
+                "Numbers and special characters are not allowed.",
+            )
+
+    # Must contain at least one alphabetic character
+    if not any(ch.isalpha() for ch in cleaned):
+        return False, "Employee name cannot be only spaces."
+
+    return True, ""
+
+
+def validate_age(age_input) -> Tuple[bool, str, Optional[int]]:
+    """
+    Validate employee age:
+    - Accept only numeric values.
+    - Minimum age: 18.
+    - Maximum age: 65.
+    - Reject values outside this range.
+    """
+    if age_input is None:
+        return False, "Age cannot be empty.", None
+
+    age_str = str(age_input).strip()
+    if not age_str:
+        return False, "Age cannot be empty.", None
+
+    # Check for strictly numeric digits
+    if not age_str.isdigit():
+        return False, f"Invalid age '{age_str}'. Age must be a numeric integer value.", None
+
+    age = int(age_str)
+    if age < 18 or age > 65:
+        return (
+            False,
+            f"Age must be between 18 and 65 (inclusive). Entered age: {age}.",
+            None,
+        )
+
+    return True, "", age
+
+
+def validate_location_field(value: str, field_name: str) -> Tuple[bool, str]:
+    """
+    Validate location fields (City, State, Country):
+    - Cannot be empty.
+    - Must contain only letters and spaces.
+    """
+    if not value or not str(value).strip():
+        return False, f"{field_name} cannot be empty."
+
+    cleaned = str(value).strip()
+    for ch in cleaned:
+        if not (ch.isalpha() or ch.isspace()):
+            return False, f"{field_name} must contain only alphabetic characters and spaces."
+
+    if not any(ch.isalpha() for ch in cleaned):
+        return False, f"{field_name} cannot be only spaces."
+
+    return True, ""
+
+
+def validate_department_description(desc: str) -> Tuple[bool, str]:
+    """
+    Validate department description:
+    - Cannot be empty.
+    """
+    if not desc or not str(desc).strip():
+        return False, "Department description cannot be empty."
+    return True, ""
+
+
+# ==============================================================================
+# 2. MANUAL DATE ENGINE (NO DATETIME, DATE, TIME, OR CALENDAR MODULES)
 # ==============================================================================
 
 def is_leap_year(year: int) -> bool:
- 
+    """
+    Manually determine whether a given year is a leap year.
+    Rule:
+    - Divisible by 4 AND NOT divisible by 100, OR
+    - Divisible by 400.
+    """
     return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
 
 
 def get_days_in_month(month: int, year: int) -> int:
-  
+    """
+    Return the maximum number of days in a given month and year.
+    Accounts for leap years manually for February without external libraries.
+    """
     if month < 1 or month > 12:
         return 0
 
-    # Days in each calendar month: index 1 = January, ..., 12 = December
     days_per_month = [
-        0,   # placeholder for 0-index
+        0,   # placeholder for 1-based index
         31,  # 1: January
-        29 if is_leap_year(year) else 28,  # 2: February (29 in leap year, else 28)
+        29 if is_leap_year(year) else 28,  # 2: February
         31,  # 3: March
         30,  # 4: April
         31,  # 5: May
@@ -42,21 +152,28 @@ def get_days_in_month(month: int, year: int) -> int:
 
 
 def validate_date_format(date_str: str) -> Tuple[bool, str, Optional[Tuple[int, int, int]]]:
-   
+    """
+    Validate a date string strictly following MM-DD-CCYY format manually.
+    - Format must be exactly 10 characters: 2-digit month, '-', 2-digit day, '-', 4-digit year.
+    - Rejects invalid months (e.g., 13-20-2024).
+    - Rejects impossible calendar days (e.g., 02-30-2024, 04-31-2024, 02-29-2023).
+    - Rejects improper formats (e.g., 2024-01-15, 01/15/2024, 1-5-2024).
+
+    Returns:
+        (is_valid, error_message, (year, month, day) or None)
+    """
     if not date_str or not str(date_str).strip():
         return False, "Date cannot be empty.", None
 
     cleaned = str(date_str).strip()
 
-    # Must be exactly 10 characters: MM-DD-CCYY
     if len(cleaned) != 10:
         return (
             False,
-            f"Invalid date '{cleaned}'. Date must be exactly 10 characters in MM-DD-CCYY format (e.g., 01-15-2024).",
+            f"Invalid date format '{cleaned}'. Date must follow MM-DD-CCYY (e.g., 01-15-2024).",
             None,
         )
 
-    # Must contain exactly two hyphens
     parts = cleaned.split("-")
     if len(parts) != 3:
         return (
@@ -67,7 +184,6 @@ def validate_date_format(date_str: str) -> Tuple[bool, str, Optional[Tuple[int, 
 
     mm_str, dd_str, ccyy_str = parts
 
-    # Check that parts contain only digits with expected lengths
     if len(mm_str) != 2 or not mm_str.isdigit():
         return False, f"Invalid month '{mm_str}'. Month must be exactly 2 digits (01-12).", None
 
@@ -81,15 +197,12 @@ def validate_date_format(date_str: str) -> Tuple[bool, str, Optional[Tuple[int, 
     day = int(dd_str)
     year = int(ccyy_str)
 
-    # Month bounds check
     if month < 1 or month > 12:
         return False, f"Invalid month '{month:02d}'. Month must be between 01 and 12.", None
 
-    # Year reasonable century bounds
     if year < 1000 or year > 9999:
         return False, f"Invalid year '{year}'. Year must be between 1000 and 9999.", None
 
-    # Day bounds check for the specific month and year
     max_days = get_days_in_month(month, year)
     if day < 1 or day > max_days:
         if month == 2 and day == 29 and not is_leap_year(year):
@@ -104,7 +217,6 @@ def validate_date_format(date_str: str) -> Tuple[bool, str, Optional[Tuple[int, 
             None,
         )
 
-    # Return validated chronological date tuple: (year, month, day)
     return True, "", (year, month, day)
 
 
@@ -112,23 +224,26 @@ def compare_dates(
     date1: Tuple[int, int, int],
     date2: Tuple[int, int, int]
 ) -> int:
-   
+    """
+    Manually compare two chronological date tuples: (year, month, day).
+    Returns:
+        -1 if date1 is earlier than date2
+         0 if date1 is the exact same date as date2
+         1 if date1 is later than date2
+    """
     y1, m1, d1 = date1
     y2, m2, d2 = date2
 
-    # Compare years first
     if y1 < y2:
         return -1
     if y1 > y2:
         return 1
 
-    # Years are equal, compare months
     if m1 < m2:
         return -1
     if m1 > m2:
         return 1
 
-    # Months are equal, compare days
     if d1 < d2:
         return -1
     if d1 > d2:
@@ -153,7 +268,10 @@ def check_date_ranges_overlap(
     s2: Tuple[int, int, int],
     e2: Tuple[int, int, int]
 ) -> bool:
-   
+    """
+    Check whether two closed date intervals [s1, e1] and [s2, e2] overlap.
+    Condition: s1 <= e2 AND s2 <= e1
+    """
     condition1 = compare_dates(s1, e2) <= 0
     condition2 = compare_dates(s2, e1) <= 0
     return condition1 and condition2
@@ -164,7 +282,10 @@ def is_employee_working_on_date(
     asg_end: Tuple[int, int, int],
     target_date: Tuple[int, int, int]
 ) -> bool:
-   
+    """
+    Check whether an employee's assignment is active on a specific target date.
+    Condition: asg_start <= target_date <= asg_end
+    """
     after_or_on_start = compare_dates(asg_start, target_date) <= 0
     before_or_on_end = compare_dates(target_date, asg_end) <= 0
     return after_or_on_start and before_or_on_end
@@ -175,7 +296,9 @@ def find_assignments_overlapping_range(
     query_end: Tuple[int, int, int],
     assignments: List[Dict[str, str]]
 ) -> List[Dict[str, str]]:
-   
+    """
+    Filter assignments that overlap with the specified [query_start, query_end] window.
+    """
     overlapping = []
     for asg in assignments:
         s_str = asg.get("Start Date", "").strip()
@@ -202,7 +325,12 @@ def validate_assignment_dates(
     start_date_str: str,
     end_date_str: str
 ) -> Tuple[bool, Optional[Tuple[int, int, int]], Optional[Tuple[int, int, int]], str]:
-    
+    """
+    Validate assignment start and end dates manually:
+    - Start Date must follow MM-DD-CCYY.
+    - End Date must follow MM-DD-CCYY OR be 'Current'.
+    - End Date must be equal to or later than Start Date.
+    """
     ok_s, msg_s, s_tuple = validate_date_format(start_date_str)
     if not ok_s or not s_tuple:
         return False, None, None, f"Start Date error: {msg_s}"
@@ -215,7 +343,6 @@ def validate_assignment_dates(
     if not ok_e or not e_tuple:
         return False, None, None, f"End Date error: {msg_e}"
 
-    # Verify End Date >= Start Date
     if compare_dates(e_tuple, s_tuple) < 0:
         return (
             False,
@@ -232,7 +359,9 @@ def check_current_department_duplicate(
     dept_id: str,
     assignments: List[Dict[str, str]]
 ) -> Tuple[bool, str]:
-   
+    """
+    Check if the employee is already working in this department currently.
+    """
     norm_emp = emp_id.strip().upper()
     norm_dept = dept_id.strip().upper()
 
@@ -247,6 +376,24 @@ def check_current_department_duplicate(
     return False, ""
 
 
+def check_active_assignment_exists(
+    emp_id: str,
+    assignments: List[Dict[str, str]]
+) -> Tuple[bool, Optional[Dict[str, str]]]:
+    """
+    Check if the employee already has an active ongoing assignment ('Current').
+    An employee cannot have two active assignments at the same time.
+    """
+    norm_emp = emp_id.strip().upper()
+    for asg in assignments:
+        if (
+            asg.get("Employee ID", "").strip().upper() == norm_emp
+            and asg.get("End Date", "").strip().upper() == "CURRENT"
+        ):
+            return True, asg
+    return False, None
+
+
 def check_assignment_overlap(
     emp_id: str,
     new_start_tuple: Tuple[int, int, int],
@@ -254,7 +401,10 @@ def check_assignment_overlap(
     assignments: List[Dict[str, str]],
     exclude_asg_id: Optional[str] = None
 ) -> Tuple[bool, str]:
-    
+    """
+    Check whether [new_start_tuple, new_end_tuple] overlaps with any existing assignments
+    of the employee using manual interval overlap logic.
+    """
     norm_emp = emp_id.strip().upper()
 
     for asg in assignments:
@@ -279,7 +429,6 @@ def check_assignment_overlap(
             if not ok_e or not ex_end_tuple:
                 continue
 
-        # Check manual overlap
         if check_date_ranges_overlap(new_start_tuple, new_end_tuple, ex_start_tuple, ex_end_tuple):
             dept_id = asg.get("Department ID", "").strip()
             return (
@@ -289,78 +438,3 @@ def check_assignment_overlap(
             )
 
     return False, ""
-
-
-# ==============================================================================
-# 2. GENERAL FIELD VALIDATIONS (EMPLOYEE & DEPARTMENT)
-# ==============================================================================
-
-def validate_non_empty(value: str, field_name: str) -> Tuple[bool, str]:
-    if not value or not str(value).strip():
-        return False, f"{field_name} cannot be empty."
-    return True, ""
-
-
-def validate_employee_name(name: str) -> Tuple[bool, str]:
-    valid, msg = validate_non_empty(name, "Employee name")
-    if not valid:
-        return False, msg
-
-    cleaned = name.strip()
-    if len(cleaned) < 2:
-        return False, "Employee name must be at least 2 characters long."
-    if len(cleaned) > 100:
-        return False, "Employee name cannot exceed 100 characters."
-
-    # Allow letters, spaces, dots, hyphens, apostrophes (e.g., O'Connor, Mary-Jane, Dr. Rajan)
-    if not re.match(r"^[A-Za-z\s\.\-']+$", cleaned):
-        return False, "Employee name contains invalid characters. Use letters, spaces, hyphens, or periods only."
-
-    return True, ""
-
-
-def validate_age(age_val) -> Tuple[bool, str, Optional[int]]:
-   
-    if isinstance(age_val, str):
-        age_str = age_val.strip()
-        if not age_str:
-            return False, "Age cannot be empty.", None
-        if not re.match(r"^-?\d+$", age_str):
-            return False, f"Invalid age '{age_val}'. Age must be a valid whole number.", None
-        try:
-            age = int(age_str)
-        except ValueError:
-            return False, f"Invalid age '{age_val}'. Age must be a valid whole number.", None
-    elif isinstance(age_val, int):
-        age = age_val
-    else:
-        return False, "Age must be a valid whole number.", None
-
-    if age < 18 or age > 65:
-        return False, f"Age must be between 18 and 65 (inclusive). Entered age: {age}.", None
-
-    return True, "", age
-
-
-def validate_location_field(value: str, field_name: str) -> Tuple[bool, str]:
-    valid, msg = validate_non_empty(value, field_name)
-    if not valid:
-        return False, msg
-    cleaned = value.strip()
-    if len(cleaned) < 2:
-        return False, f"{field_name} must be at least 2 characters long."
-    if len(cleaned) > 60:
-        return False, f"{field_name} cannot exceed 60 characters."
-    return True, ""
-
-
-def validate_department_description(desc: str) -> Tuple[bool, str]:
-    valid, msg = validate_non_empty(desc, "Department description")
-    if not valid:
-        return False, msg
-    cleaned = desc.strip()
-    if len(cleaned) < 2:
-        return False, "Department description must be at least 2 characters long."
-    if len(cleaned) > 100:
-        return False, "Department description cannot exceed 100 characters."
-    return True, ""

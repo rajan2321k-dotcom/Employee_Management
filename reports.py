@@ -1,5 +1,13 @@
+"""
+reports.py - Date-Based Employee Department Reporting Module
 
-from typing import List, Dict, Tuple, Optional
+Generates specialized date-based operational reports using 100% manual date
+comparison algorithms without datetime, date, time, or calendar:
+1. View Employees Working on a Date (Feature 5)
+2. View Employees Working Within a Date Range (Feature 6)
+"""
+
+from typing import List, Dict, Tuple
 from file_handler import (
     read_records,
     EMP_FILE,
@@ -15,12 +23,15 @@ from validation import (
     is_employee_working_on_date,
     check_date_ranges_overlap,
     MAX_DATE_TUPLE,
-    MIN_DATE_TUPLE,
 )
 
 
 def _load_lookups() -> Tuple[Dict[str, str], Dict[str, str]]:
-  
+    """
+    Build lookup dictionaries from CSV files:
+    emp_map: {Employee ID -> Employee Name}
+    dept_map: {Department ID -> Department Description}
+    """
     employees = read_records(EMP_FILE, EMP_HEADERS)
     departments = read_records(DEPT_FILE, DEPT_HEADERS)
 
@@ -38,7 +49,13 @@ def _load_lookups() -> Tuple[Dict[str, str], Dict[str, str]]:
 def get_employees_working_on_date(
     date_str: str
 ) -> Tuple[bool, str, List[Dict[str, str]]]:
- 
+    """
+    Feature 5: Find all employees who were actively working in a department on a specific date.
+    Applies custom manual date comparison logic:
+        asg_start <= target_date <= asg_end
+    (For 'Current' assignments, asg_end is treated as MAX_DATE_TUPLE (9999, 12, 31)).
+    Returns rows formatted with 'Employee Name' and 'Department'.
+    """
     ok, msg, target_tuple = validate_date_format(date_str)
     if not ok or not target_tuple:
         return False, msg, []
@@ -62,7 +79,7 @@ def get_employees_working_on_date(
             if not ok_e or not e_tuple:
                 continue
 
-        # Check whether employee is working on target date using custom date logic
+        # Check whether employee was working on the requested date
         if is_employee_working_on_date(s_tuple, e_tuple, target_tuple):
             emp_id = asg.get("Employee ID", "").strip().upper()
             dept_id = asg.get("Department ID", "").strip().upper()
@@ -71,16 +88,12 @@ def get_employees_working_on_date(
             dept_desc = dept_map.get(dept_id, dept_id)
 
             matching_rows.append({
-                "Employee ID": emp_id,
                 "Employee Name": emp_name,
-                "Department ID": dept_id,
                 "Department": dept_desc,
-                "Start Date": s_str,
-                "End Date": e_str,
             })
 
-    # Sort primarily by Employee ID / Name
-    matching_rows.sort(key=lambda r: (r["Employee Name"], r["Employee ID"]))
+    # Sort primarily by Employee Name
+    matching_rows.sort(key=lambda r: r["Employee Name"])
     return True, "", matching_rows
 
 
@@ -88,7 +101,15 @@ def get_employees_working_in_date_range(
     start_date_str: str,
     end_date_str: str
 ) -> Tuple[bool, str, List[Dict[str, str]]]:
-   
+    """
+    Feature 6: Find all assignments that overlap with the requested [start_date, end_date] range.
+    Applies custom manual interval overlap logic:
+        s1 <= e2 AND s2 <= e1
+
+    If an employee worked in three departments during the requested range,
+    they are listed as three separate rows with original start and end dates.
+    Columns: Employee Name, Department, Assignment Start Date, Assignment End Date.
+    """
     ok_q_start, msg_s, q_start_tuple = validate_date_format(start_date_str)
     if not ok_q_start or not q_start_tuple:
         return False, f"Start Date error: {msg_s}", []
@@ -101,7 +122,7 @@ def get_employees_working_in_date_range(
     if compare_dates(q_end_tuple, q_start_tuple) < 0:
         return (
             False,
-            f"End date ({end_date_str.strip()}) cannot be earlier than start date ({start_date_str.strip()}).",
+            f"End Date ({end_date_str.strip()}) must be greater than or equal to Start Date ({start_date_str.strip()}).",
             [],
         )
 
@@ -133,17 +154,14 @@ def get_employees_working_in_date_range(
             dept_desc = dept_map.get(dept_id, dept_id)
 
             matching_rows.append({
-                "Assignment ID": asg.get("Assignment ID", "").strip(),
-                "Employee ID": emp_id,
                 "Employee Name": emp_name,
-                "Department ID": dept_id,
                 "Department": dept_desc,
-                "Start Date": s_str,
-                "End Date": e_str,
+                "Assignment Start Date": s_str,
+                "Assignment End Date": e_str,
                 "_start_tuple": a_start_tuple,
             })
 
-    # Sort by Employee Name, then chronological start date tuple
+    # Sort by Employee Name, then chronological start date
     matching_rows.sort(key=lambda r: (r["Employee Name"], r["_start_tuple"]))
     for r in matching_rows:
         r.pop("_start_tuple", None)
