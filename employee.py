@@ -33,6 +33,22 @@ def get_employee_by_id(emp_id: str) -> Optional[Dict[str, str]]:
         if emp.get("Employee ID", "").strip().upper() == norm_id:
             return emp
     return None
+def search_employees_by_name(name: str) -> List[Dict[str, str]]:
+    """
+    Search employees by name (case-insensitive).
+    Returns all matching employee records.
+    """
+    search_name = name.strip().lower()
+
+    matching_employees = []
+
+    for emp in get_all_employees():
+        employee_name = emp.get("Name", "").strip().lower()
+
+        if search_name in employee_name:
+            matching_employees.append(emp)
+
+    return matching_employees
 
 
 def generate_next_employee_id() -> str:

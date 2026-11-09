@@ -152,59 +152,118 @@ def menu_add_department():
 # ==============================================================================
 # FEATURE 3: ASSIGN EMPLOYEE TO DEPARTMENT
 # ==============================================================================
-
 def menu_assign_employee():
     """
     Assign an employee to a department.
-    Validates each input immediately before requesting the next input.
+    Search employee by name and select Employee ID.
     """
+
     print_header("ASSIGN EMPLOYEE TO DEPARTMENT")
 
-    # 1. Collect & Validate Employee ID immediately
-    emp_id = safe_input("Enter Employee ID (e.g., EMP001): ")
+    # 1. Get Employee Name
+    emp_name = safe_input("Enter Employee Name: ")
+
+    if not emp_name:
+        print("[ERROR] Employee Name cannot be empty.")
+        return
+
+    # 2. Search employees by name
+    matching_employees = employee.search_employees_by_name(emp_name)
+
+    if not matching_employees:
+        print(f"[ERROR] No employee found with name '{emp_name}'.")
+        return
+
+    # 3. Display matching employees
+    headers = ["Employee ID", "Name", "City","Age"]
+
+    display_records = [
+        {
+            "Employee ID": emp.get("Employee ID", ""),
+            "Name": emp.get("Name", ""),
+            "City": emp.get("City", ""),
+            "Age": emp.get("Age", ""),
+        }
+        for emp in matching_employees
+    ]
+
+    print("\nMatching Employees:")
+    print(format_ascii_table(headers, display_records))
+
+    # 4. Select Employee ID
+    emp_id = safe_input("\nEnter Employee ID to assign: ")
+
     if not emp_id:
         print("[ERROR] Employee ID cannot be empty.")
         return
+
     existing_emp = employee.get_employee_by_id(emp_id)
+
     if not existing_emp:
-        print(f"[ERROR] Employee with ID '{emp_id}' does not exist.")
+        print(f"[ERROR] Employee ID '{emp_id}' does not exist.")
         return
 
-    # 2. Collect & Validate Department ID immediately
+    # Check selected employee belongs to search results
+    matched_ids = [
+        emp.get("Employee ID", "").strip().upper()
+        for emp in matching_employees
+    ]
+
+    if emp_id.strip().upper() not in matched_ids:
+        print("[ERROR] Please select an Employee ID from the displayed list.")
+        return
+
+    # 5. Department ID
     dept_id = safe_input("Enter Department ID (e.g., DEP001): ")
+
     if not dept_id:
         print("[ERROR] Department ID cannot be empty.")
         return
+
     existing_dept = department.get_department_by_id(dept_id)
+
     if not existing_dept:
         print(f"[ERROR] Department with ID '{dept_id}' does not exist.")
         return
 
-    # 3. Collect & Validate Start Date immediately
-    start_date = safe_input("Enter Start Date (MM-DD-CCYY, e.g., 01-15-2024): ")
+    # 6. Start Date
+    start_date = safe_input(
+        "Enter Start Date (MM-DD-CCYY, e.g., 01-15-2024): "
+    )
+
     ok_start, msg_start, start_tuple = validate_date_format(start_date)
+
     if not ok_start or not start_tuple:
         print(f"[ERROR] Start Date error: {msg_start}")
         return
 
-    # 4. Collect & Validate End Date immediately
-    end_date = safe_input("Enter End Date (MM-DD-CCYY or press Enter for 'Current'): ")
+    # 7. End Date
+    end_date = safe_input(
+        "Enter End Date (MM-DD-CCYY or press Enter for 'Current'): "
+    )
+
     if not end_date:
         end_date = "Current"
 
     if end_date.strip().upper() != "CURRENT":
+
         ok_end, msg_end, end_tuple = validate_date_format(end_date)
+
         if not ok_end or not end_tuple:
             print(f"[ERROR] End Date error: {msg_end}")
             return
+
         if compare_dates(end_tuple, start_tuple) < 0:
-            print(f"[ERROR] End Date ({end_date.strip()}) must be greater than or equal to Start Date ({start_date.strip()}).")
+            print(
+                f"[ERROR] End Date ({end_date.strip()}) must be "
+                f"greater than or equal to Start Date ({start_date.strip()})."
+            )
             return
 
-    # Execute assignment with business rules (active assignment check, overlap check)
+    # 8. Execute Assignment
     success, message, new_record = assignment.assign_employee_to_department(
-        emp_id=emp_id,
-        dept_id=dept_id,
+        emp_id=emp_id.strip().upper(),
+        dept_id=dept_id.strip().upper(),
         start_date_str=start_date,
         end_date_str=end_date,
     )
@@ -213,6 +272,7 @@ def menu_assign_employee():
         print(f"\n[SUCCESS] {message}")
         print("\nSaved Assignment Record (CSV stored, ASCII display):")
         print(format_ascii_table(ASG_HEADERS, [new_record]))
+
     else:
         print(f"\n[ERROR] {message}")
 
@@ -360,7 +420,7 @@ def menu_view_employees_on_date():
         print("---------------------------------")
         return
 
-    headers = ["Employee Name", "Department"]
+    headers = ["Employee ID","Employee Name", "Department", "City","Department ID", ]
     print(format_ascii_table(headers, results))
     print(f"Total Employees: {len(results)}")
 
@@ -406,7 +466,7 @@ def menu_view_employees_in_date_range():
         print("-----------------------------------------------------------------------------------------")
         return
 
-    headers = ["Employee Name", "Department", "Assignment Start Date", "Assignment End Date"]
+    headers = ["Employee Name", "Department", "Assignment Start Date", "Assignment End Date", ]
     print(format_ascii_table(headers, results))
     print(f"Total Overlapping Assignments Found: {len(results)}")
 
